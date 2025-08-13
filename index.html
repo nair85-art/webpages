@@ -296,12 +296,13 @@ Welcome to your personalized fitness program. This plan is designed for a 6-day 
                 { title: 'Core & Abs', exercises: [] }
             ];
             
-            const workoutOrder = [1, 2, 3, 4, 5, 6, 0]; // Mon, Tue, Wed, Thu, Fri, Sat, Sun
-            const weeklyPlanIndex = daysSinceStart % 7;
+            // Fix: Re-mapping the day of the week to the correct workout
+            const dayOfWeek = date.getDay(); // 0 is Sunday, 1 is Monday...
+            const weeklyPlanIndex = (dayOfWeek + 6) % 7; // Map 1(Mon) -> 0, 2(Tue) -> 1, ..., 0(Sun) -> 6
             
-            const workoutForDay = weeklyPlan[workoutOrder[weeklyPlanIndex]];
-            const coreForDay = coreExercises[workoutOrder[weeklyPlanIndex]];
-            const strapForDay = strapExercises[workoutOrder[weeklyPlanIndex]];
+            const workoutForDay = weeklyPlan[weeklyPlanIndex];
+            const coreForDay = coreExercises[weeklyPlanIndex];
+            const strapForDay = strapExercises[weeklyPlanIndex];
 
             return { workout: workoutForDay, core: coreForDay, strap: strapForDay };
         }
@@ -359,7 +360,6 @@ Welcome to your personalized fitness program. This plan is designed for a 6-day 
             const day = new Date(dateString);
             const workoutData = getWorkoutPlan(day);
             const savedNotes = localStorage.getItem(`notes_${dateString}`) || '';
-            const isDayCompleted = localStorage.getItem(`dayCompleted_${dateString}`) === 'true';
             
             const workoutTitle = workoutData.workout.type !== 'rest' ? `${workoutData.workout.type.charAt(0).toUpperCase() + workoutData.workout.type.slice(1)}` : 'Rest Day';
             
@@ -367,7 +367,7 @@ Welcome to your personalized fitness program. This plan is designed for a 6-day 
                 <div id="day-${dateString}" class="accordion-item bg-slate-700 rounded-xl shadow-lg p-4">
                     <div class="flex justify-between items-center pb-4 border-b border-slate-600">
                         <div class="flex items-center space-x-4">
-                            <input type="checkbox" id="day-checkbox-${dateString}" class="form-checkbox h-5 w-5 text-indigo-600 rounded" ${isDayCompleted ? 'checked' : ''} disabled>
+                            <input type="checkbox" id="day-checkbox-${dateString}" class="form-checkbox h-5 w-5 text-indigo-600 rounded" disabled>
                             <div>
                                 <h2 class="text-lg md:text-xl font-bold">${day.toDateString()}</h2>
                                 <p class="text-sm font-light opacity-80">${workoutTitle}</p>
@@ -412,6 +412,9 @@ Welcome to your personalized fitness program. This plan is designed for a 6-day 
 
             dayHtml += '</div>';
             workoutPlanElement.innerHTML = dayHtml + renderGeneralGuidelines(generalGuidelinesMarkdown);
+            
+            const dayContainer = document.getElementById(`day-${dateString}`);
+            checkDayCompletion(dayContainer, dateString);
         }
 
         function selectDay(dateString) {
@@ -492,6 +495,9 @@ Welcome to your personalized fitness program. This plan is designed for a 6-day 
                         allCompleted = false;
                     }
                 });
+            } else {
+                // If there are no workouts (e.g., rest day), it's considered complete
+                allCompleted = true;
             }
 
             const dayCheckbox = dayContainer.querySelector(`#day-checkbox-${dateString}`);
