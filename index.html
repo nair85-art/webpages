@@ -138,7 +138,9 @@
             </div>
             
             <div id="workout-plan" class="space-y-4">
-                <!-- Workout content will be injected here -->
+                <div id="initial-message" class="text-center p-8 text-slate-400">
+                    <p>Please select a day from the calendar to view your workout plan.</p>
+                </div>
             </div>
         </main>
     </div>
@@ -234,7 +236,7 @@ Welcome to your personalized fitness program. This plan is designed for a 6-day 
         const themeToggle = document.getElementById('theme-toggle');
 
         let currentDate = new Date();
-        let selectedDate = new Date();
+        let selectedDate = null;
 
         function shuffle(array) {
             for (let i = array.length - 1; i > 0; i--) {
@@ -244,14 +246,21 @@ Welcome to your personalized fitness program. This plan is designed for a 6-day 
             return array;
         }
 
-        let workouts = {};
+        const workoutMapping = {
+            1: 'push', // Monday
+            2: 'pull', // Tuesday
+            3: 'legs', // Wednesday
+            4: 'push_alt', // Thursday
+            5: 'pull_alt', // Friday
+            6: 'legs_alt', // Saturday
+            0: 'rest' // Sunday
+        };
 
         function getWorkoutPlan(date) {
             const startDate = new Date('2025-08-11T00:00:00');
             const daysSinceStart = Math.floor((date - startDate) / (1000 * 60 * 60 * 24));
             const weekNumber = Math.floor(daysSinceStart / 7);
 
-            // Use a seeded random for consistent weekly workouts
             const randomSeed = function(seed) {
                 return function() {
                     seed = (seed * 9301 + 49297) % 233280;
@@ -266,43 +275,42 @@ Welcome to your personalized fitness program. This plan is designed for a 6-day 
             const shuffledCore = shuffle([...exercises.core].sort(() => 0.5 - currentWeekSeed()));
             const shuffledStrap = shuffle([...exercises.strap].sort(() => 0.5 - currentWeekSeed()));
 
-            const weeklyPlan = [
-                { type: 'push', exercises: shuffledPush.slice(0, 4) },
-                { type: 'pull', exercises: shuffledPull.slice(0, 4) },
-                { type: 'legs', exercises: shuffledLegs.slice(0, 5) },
-                { type: 'push', exercises: shuffledPush.slice(4, 8) },
-                { type: 'pull', exercises: shuffledPull.slice(4, 8) },
-                { type: 'legs', exercises: shuffledLegs.slice(5, 10) },
-                { type: 'rest', exercises: [] }
-            ];
+            const weeklyPlan = {
+                push: { type: 'push', exercises: shuffledPush.slice(0, 4) },
+                pull: { type: 'pull', exercises: shuffledPull.slice(0, 4) },
+                legs: { type: 'legs', exercises: shuffledLegs.slice(0, 5) },
+                push_alt: { type: 'push', exercises: shuffledPush.slice(4, 8) },
+                pull_alt: { type: 'pull', exercises: shuffledPull.slice(4, 8) },
+                legs_alt: { type: 'legs', exercises: shuffledLegs.slice(5, 10) },
+                rest: { type: 'rest', exercises: [] }
+            };
 
-            const strapExercises = [
-                { title: 'Strap Exercises', exercises: shuffledStrap.slice(0, 2) },
-                { title: 'Strap Exercises', exercises: shuffledStrap.slice(0, 2) },
-                { title: 'Strap Exercises', exercises: [] },
-                { title: 'Strap Exercises', exercises: shuffledStrap.slice(2, 4) },
-                { title: 'Strap Exercises', exercises: shuffledStrap.slice(2, 4) },
-                { title: 'Strap Exercises', exercises: [] },
-                { title: 'Strap Exercises', exercises: [] }
-            ];
+            const strapExercises = {
+                push: { title: 'Strap Exercises', exercises: shuffledStrap.slice(0, 2) },
+                pull: { title: 'Strap Exercises', exercises: shuffledStrap.slice(0, 2) },
+                legs: { title: 'Strap Exercises', exercises: [] },
+                push_alt: { title: 'Strap Exercises', exercises: shuffledStrap.slice(2, 4) },
+                pull_alt: { title: 'Strap Exercises', exercises: shuffledStrap.slice(2, 4) },
+                legs_alt: { title: 'Strap Exercises', exercises: [] },
+                rest: { title: 'Strap Exercises', exercises: [] }
+            };
 
-            const coreExercises = [
-                { title: 'Core & Abs', exercises: shuffledCore.slice(0, 2) },
-                { title: 'Core & Abs', exercises: shuffledCore.slice(2, 4) },
-                { title: 'Core & Abs', exercises: shuffledCore.slice(4, 6) },
-                { title: 'Core & Abs', exercises: shuffledCore.slice(6, 8) },
-                { title: 'Core & Abs', exercises: shuffledCore.slice(8, 10) },
-                { title: 'Core & Abs', exercises: shuffledCore.slice(10, 12) },
-                { title: 'Core & Abs', exercises: [] }
-            ];
+            const coreExercises = {
+                push: { title: 'Core & Abs', exercises: shuffledCore.slice(0, 2) },
+                pull: { title: 'Core & Abs', exercises: shuffledCore.slice(2, 4) },
+                legs: { title: 'Core & Abs', exercises: shuffledCore.slice(4, 6) },
+                push_alt: { title: 'Core & Abs', exercises: shuffledCore.slice(6, 8) },
+                pull_alt: { title: 'Core & Abs', exercises: shuffledCore.slice(8, 10) },
+                legs_alt: { title: 'Core & Abs', exercises: shuffledCore.slice(10, 12) },
+                rest: { title: 'Core & Abs', exercises: [] }
+            };
             
-            // Fix: Re-mapping the day of the week to the correct workout
-            const dayOfWeek = date.getDay(); // 0 is Sunday, 1 is Monday...
-            const weeklyPlanIndex = (dayOfWeek + 6) % 7; // Map 1(Mon) -> 0, 2(Tue) -> 1, ..., 0(Sun) -> 6
-            
-            const workoutForDay = weeklyPlan[weeklyPlanIndex];
-            const coreForDay = coreExercises[weeklyPlanIndex];
-            const strapForDay = strapExercises[weeklyPlanIndex];
+            const dayOfWeek = date.getDay(); // 0 (Sunday) to 6 (Saturday)
+            const workoutType = workoutMapping[dayOfWeek];
+
+            const workoutForDay = weeklyPlan[workoutType];
+            const coreForDay = coreExercises[workoutType];
+            const strapForDay = strapExercises[workoutType];
 
             return { workout: workoutForDay, core: coreForDay, strap: strapForDay };
         }
@@ -315,7 +323,6 @@ Welcome to your personalized fitness program. This plan is designed for a 6-day 
             monthYearHeader.textContent = `${currentDate.toLocaleString('default', { month: 'long' })} ${currentDate.getFullYear()}`;
             calendarGridElement.innerHTML = '';
 
-            // Add empty cells for days before the start of the month
             for (let i = 0; i < firstDayOfWeek; i++) {
                 const emptyCell = document.createElement('div');
                 emptyCell.classList.add('calendar-day-item', 'pointer-events-none');
@@ -327,7 +334,9 @@ Welcome to your personalized fitness program. This plan is designed for a 6-day 
                 const day = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
                 const dayString = day.toISOString().slice(0, 10);
                 const isToday = day.toDateString() === today.toDateString();
-                const isCompleted = localStorage.getItem(`dayCompleted_${dayString}`) === 'true';
+                const allWorkoutsCount = localStorage.getItem(`workoutsCount_${dayString}`);
+                const completedWorkoutsCount = localStorage.getItem(`workoutsCompletedCount_${dayString}`);
+                const isCompleted = allWorkoutsCount && allWorkoutsCount === completedWorkoutsCount;
 
                 const dayElement = document.createElement('button');
                 dayElement.textContent = i;
@@ -337,7 +346,7 @@ Welcome to your personalized fitness program. This plan is designed for a 6-day 
                 if (isToday) {
                     dayElement.classList.add('today');
                 }
-                if (dayString === selectedDate.toISOString().slice(0, 10)) {
+                if (selectedDate && dayString === selectedDate.toISOString().slice(0, 10)) {
                     dayElement.classList.add('selected');
                 }
                 if (isCompleted) {
@@ -382,6 +391,14 @@ Welcome to your personalized fitness program. This plan is designed for a 6-day 
             `;
             
             if (workoutData.workout.type !== 'rest') {
+                 dayHtml += `
+                    <div class="mt-4">
+                        <button onclick="window.open('https://music.youtube.com', '_blank')" class="w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-md shadow-md transition-colors">
+                            Start Your Workout Playlist
+                        </button>
+                    </div>
+                `;
+
                 dayHtml += `
                     <div class="mt-4">
                         <h4 class="text-lg font-semibold">${workoutTitle} Exercises</h4>
@@ -415,13 +432,19 @@ Welcome to your personalized fitness program. This plan is designed for a 6-day 
             
             const dayContainer = document.getElementById(`day-${dateString}`);
             checkDayCompletion(dayContainer, dateString);
+            localStorage.setItem(`workoutsCount_${dateString}`, allWorkoutsCount);
         }
 
         function selectDay(dateString) {
+            const initialMessage = document.getElementById('initial-message');
+            if (initialMessage) {
+                initialMessage.style.display = 'none';
+            }
             renderWorkoutPlan(dateString);
             addListeners();
         }
 
+        let allWorkoutsCount = 0;
         function convertExercisesToHtml(exerciseList, dateString, type = 'main') {
             let html = '';
             let exerciseIndex = 0;
@@ -451,6 +474,7 @@ Welcome to your personalized fitness program. This plan is designed for a 6-day 
                 
                 html += `</div></div>`;
             });
+            allWorkoutsCount += exerciseList.length;
             return html;
         }
 
@@ -488,17 +512,17 @@ Welcome to your personalized fitness program. This plan is designed for a 6-day 
         function checkDayCompletion(dayContainer, dateString) {
             const allWorkouts = dayContainer.querySelectorAll('input[type="checkbox"][id^="workout-checkbox-"]');
             
-            let allCompleted = true;
-            if (allWorkouts.length > 0) {
-                 allWorkouts.forEach(checkbox => {
-                    if (!checkbox.checked) {
-                        allCompleted = false;
-                    }
-                });
-            } else {
-                // If there are no workouts (e.g., rest day), it's considered complete
-                allCompleted = true;
-            }
+            let completedWorkoutsCount = 0;
+            allWorkouts.forEach(checkbox => {
+                if(checkbox.checked){
+                    completedWorkoutsCount++;
+                }
+            });
+            
+            localStorage.setItem(`workoutsCount_${dateString}`, allWorkouts.length);
+            localStorage.setItem(`workoutsCompletedCount_${dateString}`, completedWorkoutsCount);
+
+            const allCompleted = allWorkouts.length === completedWorkoutsCount;
 
             const dayCheckbox = dayContainer.querySelector(`#day-checkbox-${dateString}`);
             if (dayCheckbox) {
@@ -577,10 +601,11 @@ Welcome to your personalized fitness program. This plan is designed for a 6-day 
         document.addEventListener('DOMContentLoaded', () => {
             setInitialTheme();
             createCalendar();
-            const todayString = new Date().toISOString().slice(0, 10);
-            selectDay(todayString);
+            
+            // Fix: No initial day is selected on page load.
+            // const todayString = new Date().toISOString().slice(0, 10);
+            // selectDay(todayString);
 
-            // Add listeners for calendar month navigation
             prevMonthBtn.addEventListener('click', () => {
                 currentDate.setMonth(currentDate.getMonth() - 1);
                 createCalendar();
