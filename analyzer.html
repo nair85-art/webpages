@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Ticker Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827; /* Dark gray background */
+            color: #F9FAFB; /* Light text */
+        }
+        .card {
+            background-color: #1F2937; /* Lighter gray for cards */
+            border: 1px solid #374151;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .recommendation-card {
+            background: linear-gradient(145deg, #1e3a8a, #3b82f6);
+        }
+        .neutral-card {
+            background: linear-gradient(145deg, #4b5563, #6b7280);
+        }
+        .put-card {
+             background: linear-gradient(145deg, #991b1b, #ef4444);
+        }
+        .btn {
+            transition: all 0.3s ease;
+        }
+        .btn:hover:not(:disabled) {
+            transform: scale(1.05);
+        }
+        .gauge-container {
+            position: relative;
+            width: 100%;
+            height: 80px;
+            background-color: #374151;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+        .gauge-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            transition: width 0.5s ease-in-out;
+        }
+        .gauge-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: 600;
+            font-size: 1.25rem;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #3b82f6;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header Section -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-500 mb-2">Live Stock Analyzer</h1>
+            <p class="text-lg text-gray-400">Identify potential trading patterns using live technical indicator data.</p>
+        </header>
+
+        <main>
+            <!-- Control and Chart Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <div class="lg:col-span-1 flex flex-col justify-between">
+                     <div class="card h-full flex flex-col justify-center items-center">
+                        <h2 class="text-2xl font-semibold text-gray-200 mb-4">Analysis Control</h2>
+                        <div class="w-full space-y-4">
+                            <div>
+                                <label for="symbolInput" class="block text-sm font-medium text-gray-400 mb-1">Stock Symbol</label>
+                                <input type="text" id="symbolInput" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white uppercase focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="e.g., AAPL, TSLA" value="NVDA">
+                            </div>
+                        </div>
+                        <button id="runAnalysis" class="btn bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 px-8 rounded-full shadow-lg w-full mt-6 flex items-center justify-center space-x-2">
+                            <span id="runAnalysisText">Run Analysis</span>
+                            <div id="loadingSpinner" class="spinner hidden"></div>
+                        </button>
+                        <p id="errorMessage" class="text-red-400 text-sm mt-3 h-4"></p>
+                    </div>
+                </div>
+                <div class="card lg:col-span-2 flex flex-col justify-center items-center">
+                     <h3 id="chartTitle" class="text-xl font-semibold mb-2 text-gray-300">NVDA Price Chart (Illustrative)</h3>
+                     <div id="chart-placeholder" class="w-full h-48 md:h-64 flex items-center justify-center bg-gray-900/50 rounded-lg border border-gray-600">
+                        <svg width="80%" height="80%" viewBox="0 0 200 100" class="opacity-75">
+                            <polyline id="chartLine" fill="none" stroke="#22c55e" stroke-width="2" points="10,80 30,60 50,70 70,40 90,50 110,20 130,30 150,10 170,25 190,15" />
+                        </svg>
+                     </div>
+                </div>
+            </div>
+
+            <!-- Technical Indicators Section -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- Moving Average Card -->
+                <div class="card">
+                    <h3 class="text-xl font-semibold mb-3">Moving Average (SMA)</h3>
+                    <div id="ma-status" class="text-lg font-bold">&mdash;</div>
+                    <div class="mt-4 text-sm text-gray-400 space-y-1">
+                        <p>20-Day MA: <span id="ma-short" class="font-mono">&mdash;</span></p>
+                        <p>50-Day MA: <span id="ma-long" class="font-mono">&mdash;</span></p>
+                    </div>
+                </div>
+
+                <!-- RSI Card -->
+                <div class="card">
+                    <h3 class="text-xl font-semibold mb-3">Relative Strength Index (RSI)</h3>
+                    <div id="rsi-status" class="text-lg font-bold">&mdash;</div>
+                    <div class="mt-4">
+                        <div class="gauge-container">
+                             <div id="rsi-gauge-bar" class="gauge-bar"></div>
+                             <div id="rsi-value" class="gauge-text">&mdash;</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MACD Card -->
+                <div class="card">
+                    <h3 class="text-xl font-semibold mb-3">MACD</h3>
+                    <div id="macd-status" class="text-lg font-bold">&mdash;</div>
+                    <div class="mt-4 text-sm text-gray-400 space-y-1">
+                        <p>MACD Line: <span id="macd-line" class="font-mono">&mdash;</span></p>
+                        <p>Signal Line: <span id="macd-signal" class="font-mono">&mdash;</span></p>
+                    </div>
+                </div>
+
+                <!-- Bollinger Bands Card -->
+                <div class="card">
+                    <h3 class="text-xl font-semibold mb-3">Bollinger Bands®</h3>
+                    <div id="bb-status" class="text-lg font-bold">&mdash;</div>
+                     <div class="mt-4 text-sm text-gray-400 space-y-1">
+                        <p>Upper: <span id="bb-upper" class="font-mono">&mdash;</span></p>
+                        <p>Current Price: <span id="bb-price" class="font-mono">&mdash;</span></p>
+                        <p>Lower: <span id="bb-lower" class="font-mono">&mdash;</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendation Section -->
+            <div id="recommendation-container" class="card text-white text-center p-8">
+                <h2 class="text-2xl font-bold mb-2">Analysis Recommendation</h2>
+                <p id="recommendation-text" class="text-4xl font-extrabold">&mdash;</p>
+                <p id="recommendation-desc" class="mt-4 text-gray-300 max-w-2xl mx-auto">Enter a stock symbol and run an analysis to generate a recommendation from live market data.</p>
+            </div>
+            
+            <!-- Disclaimer -->
+            <footer class="text-center mt-8 text-xs text-gray-500">
+                <p><strong>Disclaimer:</strong> This tool is for educational purposes. Data is provided by Alpha Vantage. This is not financial advice. Always conduct your own research and consult with a qualified financial professional before making any investment decisions.</p>
+            </footer>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const runAnalysisBtn = document.getElementById('runAnalysis');
+            const symbolInput = document.getElementById('symbolInput');
+            const errorMessageEl = document.getElementById('errorMessage');
+            const runAnalysisTextEl = document.getElementById('runAnalysisText');
+            const loadingSpinnerEl = document.getElementById('loadingSpinner');
+            const chartTitleEl = document.getElementById('chartTitle');
+            const chartLineEl = document.getElementById('chartLine');
+            
+            // Hardcoded API Key
+            const apiKey = 'BEMO77WVJH06ISFX';
+
+            // --- UI Elements for Indicators ---
+            const maStatusEl = document.getElementById('ma-status');
+            const maShortEl = document.getElementById('ma-short');
+            const maLongEl = document.getElementById('ma-long');
+            const rsiStatusEl = document.getElementById('rsi-status');
+            const rsiValueEl = document.getElementById('rsi-value');
+            const rsiGaugeBarEl = document.getElementById('rsi-gauge-bar');
+            const macdStatusEl = document.getElementById('macd-status');
+            const macdLineEl = document.getElementById('macd-line');
+            const macdSignalEl = document.getElementById('macd-signal');
+            const bbStatusEl = document.getElementById('bb-status');
+            const bbUpperEl = document.getElementById('bb-upper');
+            const bbPriceEl = document.getElementById('bb-price');
+            const bbLowerEl = document.getElementById('bb-lower');
+            const recommendationContainerEl = document.getElementById('recommendation-container');
+            const recommendationTextEl = document.getElementById('recommendation-text');
+            const recommendationDescEl = document.getElementById('recommendation-desc');
+
+            // --- Main Analysis Function ---
+            async function analyzeStock() {
+                const symbol = symbolInput.value.trim().toUpperCase();
+
+                if (!symbol) {
+                    errorMessageEl.textContent = 'Please enter a stock symbol.';
+                    return;
+                }
+                
+                // Set UI to loading state
+                runAnalysisBtn.disabled = true;
+                runAnalysisTextEl.textContent = `Analyzing ${symbol}...`;
+                loadingSpinnerEl.classList.remove('hidden');
+                errorMessageEl.textContent = '';
+                chartTitleEl.textContent = `${symbol} Price Chart (Illustrative)`;
+                resetUI();
+
+                const BASE_URL = 'https://www.alphavantage.co/query';
+
+                // Define API endpoints
+                const urls = {
+                    sma20: `${BASE_URL}?function=SMA&symbol=${symbol}&interval=daily&time_period=20&series_type=close&apikey=${apiKey}`,
+                    sma50: `${BASE_URL}?function=SMA&symbol=${symbol}&interval=daily&time_period=50&series_type=close&apikey=${apiKey}`,
+                    rsi: `${BASE_URL}?function=RSI&symbol=${symbol}&interval=daily&time_period=14&series_type=close&apikey=${apiKey}`,
+                    macd: `${BASE_URL}?function=MACD&symbol=${symbol}&interval=daily&series_type=close&apikey=${apiKey}`,
+                    bbands: `${BASE_URL}?function=BBANDS&symbol=${symbol}&interval=daily&time_period=20&series_type=close&apikey=${apiKey}`,
+                    quote: `${BASE_URL}?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${apiKey}`
+                };
+
+                try {
+                    // Fetch all data concurrently
+                    const responses = await Promise.all(Object.values(urls).map(url => fetch(url)));
+                    const data = await Promise.all(responses.map(res => res.json()));
+                    
+                    const [sma20Data, sma50Data, rsiData, macdData, bbandsData, quoteData] = data;
+
+                    // --- Check for API errors or empty responses ---
+                     for (const d of data) {
+                        if (d['Error Message'] || d['Note'] || Object.keys(d).length === 0) {
+                            throw new Error('API Error: Invalid symbol or API limit reached.');
+                        }
+                    }
+
+                    // --- 1. Parse Data ---
+                    // Helper to get the most recent data point from a time series
+                    const getLatest = (timeSeriesData) => {
+                        if (!timeSeriesData) return null;
+                        const latestDate = Object.keys(timeSeriesData)[0];
+                        return timeSeriesData[latestDate];
+                    };
+
+                    const latestSma20 = parseFloat(getLatest(sma20Data['Technical Analysis: SMA'])['SMA']);
+                    const latestSma50 = parseFloat(getLatest(sma50Data['Technical Analysis: SMA'])['SMA']);
+                    const latestRsi = parseFloat(getLatest(rsiData['Technical Analysis: RSI'])['RSI']);
+                    const latestMacdAll = getLatest(macdData['Technical Analysis: MACD']);
+                    const latestMacd = parseFloat(latestMacdAll['MACD']);
+                    const latestMacdSignal = parseFloat(latestMacdAll['MACD_Signal']);
+                    const latestBbandsAll = getLatest(bbandsData['Technical Analysis: BBANDS']);
+                    const latestBbandsUpper = parseFloat(latestBbandsAll['Real Upper Band']);
+                    const latestBbandsLower = parseFloat(latestBbandsAll['Real Lower Band']);
+                    const quoteInfo = quoteData['Global Quote'];
+                    if (!quoteInfo || !quoteInfo['05. price']) {
+                        throw new Error(`Could not retrieve quote for symbol: ${symbol}.`);
+                    }
+                    const currentPrice = parseFloat(quoteInfo['05. price']);
+                    const priceChange = parseFloat(quoteInfo['09. change']);
+
+                    // Update chart color based on price change
+                    chartLineEl.setAttribute('stroke', priceChange >= 0 ? '#22c55e' : '#ef4444');
+                    
+                    // --- 2. Analyze Indicators & Update UI ---
+                    let indicators = { ma: 'Neutral', rsi: 'Neutral', macd: 'Neutral', bb: 'Normal' };
+
+                    // Analyze & Update MA
+                    if (latestSma20 > latestSma50) {
+                        maStatusEl.textContent = 'Bullish (20 > 50)';
+                        maStatusEl.className = 'text-lg font-bold text-green-400';
+                        indicators.ma = 'Bullish';
+                    } else {
+                        maStatusEl.textContent = 'Bearish (20 < 50)';
+                        maStatusEl.className = 'text-lg font-bold text-red-400';
+                        indicators.ma = 'Bearish';
+                    }
+                    maShortEl.textContent = `$${latestSma20.toFixed(2)}`;
+                    maLongEl.textContent = `$${latestSma50.toFixed(2)}`;
+                    
+                    // Analyze & Update RSI
+                    let rsiColor = 'bg-blue-600';
+                    if (latestRsi > 70) {
+                        rsiStatusEl.textContent = 'Overbought';
+                        rsiStatusEl.className = 'text-lg font-bold text-red-400';
+                        indicators.rsi = 'Overbought';
+                        rsiColor = 'bg-red-600';
+                    } else if (latestRsi < 30) {
+                        rsiStatusEl.textContent = 'Oversold';
+                        rsiStatusEl.className = 'text-lg font-bold text-green-400';
+                        indicators.rsi = 'Oversold';
+                        rsiColor = 'bg-green-600';
+                    } else {
+                        rsiStatusEl.textContent = 'Neutral';
+                        rsiStatusEl.className = 'text-lg font-bold text-gray-400';
+                    }
+                    rsiValueEl.textContent = latestRsi.toFixed(0);
+                    rsiGaugeBarEl.style.width = `${latestRsi}%`;
+                    rsiGaugeBarEl.className = `gauge-bar ${rsiColor}`;
+
+                    // Analyze & Update MACD
+                    if (latestMacd > latestMacdSignal) {
+                        macdStatusEl.textContent = 'Bullish Crossover';
+                        macdStatusEl.className = 'text-lg font-bold text-green-400';
+                        indicators.macd = 'Bullish';
+                    } else {
+                        macdStatusEl.textContent = 'Bearish Crossover';
+                        macdStatusEl.className = 'text-lg font-bold text-red-400';
+                        indicators.macd = 'Bearish';
+                    }
+                    macdLineEl.textContent = latestMacd.toFixed(3);
+                    macdSignalEl.textContent = latestMacdSignal.toFixed(3);
+                    
+                    // Analyze & Update Bollinger Bands
+                    const bandWidth = (latestBbandsUpper - latestBbandsLower) / currentPrice;
+                    if (bandWidth < 0.05) { // Squeeze if bands are within 5% of price
+                        bbStatusEl.textContent = 'Squeeze (Low Volatility)';
+                        bbStatusEl.className = 'text-lg font-bold text-yellow-400';
+                        indicators.bb = 'Squeeze';
+                    } else if (currentPrice > latestBbandsUpper) {
+                        bbStatusEl.textContent = 'Breakout Above Upper Band';
+                        bbStatusEl.className = 'text-lg font-bold text-green-400';
+                        indicators.bb = 'Breakout';
+                    } else {
+                        bbStatusEl.textContent = 'Normal Volatility';
+                        bbStatusEl.className = 'text-lg font-bold text-gray-400';
+                    }
+                    bbUpperEl.textContent = `$${latestBbandsUpper.toFixed(2)}`;
+                    bbPriceEl.textContent = `$${currentPrice.toFixed(2)}`;
+                    bbLowerEl.textContent = `$${latestBbandsLower.toFixed(2)}`;
+
+                    // --- 3. Generate Recommendation ---
+                    getRecommendation(indicators);
+
+                } catch (error) {
+                    console.error('Analysis failed:', error);
+                    errorMessageEl.textContent = error.message || 'Failed to fetch data. Check console.';
+                } finally {
+                    // Reset UI from loading state
+                    runAnalysisBtn.disabled = false;
+                    runAnalysisTextEl.textContent = 'Run Analysis';
+                    loadingSpinnerEl.classList.add('hidden');
+                }
+            }
+            
+            function resetUI() {
+                const elements = [maStatusEl, maShortEl, maLongEl, rsiStatusEl, rsiValueEl, macdStatusEl, macdLineEl, macdSignalEl, bbStatusEl, bbUpperEl, bbPriceEl, bbLowerEl, recommendationTextEl];
+                elements.forEach(el => el.textContent = '...');
+                rsiGaugeBarEl.style.width = '0%';
+                recommendationDescEl.textContent = 'Fetching live data...';
+            }
+
+            function getRecommendation(indicators) {
+                let score = 0;
+                
+                // Score MA
+                if(indicators.ma === 'Bullish') score += 2;
+                if(indicators.ma === 'Bearish') score -= 2;
+
+                // Score RSI
+                if(indicators.rsi === 'Oversold') score += 2; // Potential reversal buy
+                if(indicators.rsi === 'Neutral' && indicators.ma === 'Bullish') score += 1;
+                if(indicators.rsi === 'Overbought') score -= 2;
+                
+                // Score MACD
+                if(indicators.macd === 'Bullish') score += 2;
+                if(indicators.macd === 'Bearish') score -= 2;
+
+                // Score BB
+                if(indicators.bb === 'Squeeze') score += 1; // Squeeze adds potential for a move
+                if(indicators.bb === 'Breakout') score += 2; // Breakout is a strong signal
+
+                // Determine final recommendation
+                if (score >= 5) {
+                    recommendationTextEl.textContent = 'STRONG BUY CALL';
+                    recommendationDescEl.textContent = 'Multiple strong bullish indicators are aligned. A powerful upward price movement may be imminent. This pattern suggests a high probability for a successful call option.';
+                    recommendationContainerEl.className = "card text-white text-center p-8 recommendation-card";
+                } else if (score >= 3) {
+                    recommendationTextEl.textContent = 'POTENTIAL BUY CALL';
+                    recommendationDescEl.textContent = 'Several bullish indicators are present, but the signal is not yet definitive. Monitor for further confirmation before entering a position.';
+                     recommendationContainerEl.className = "card text-white text-center p-8 recommendation-card";
+                } else if (score > -3) {
+                    recommendationTextEl.textContent = 'HOLD / NEUTRAL';
+                    recommendationDescEl.textContent = 'Indicators are mixed, suggesting market indecision or consolidation. It is often wise to wait for a clearer trend to emerge.';
+                    recommendationContainerEl.className = "card text-white text-center p-8 neutral-card";
+                } else {
+                    recommendationTextEl.textContent = 'CONSIDER PUTS';
+                    recommendationDescEl.textContent = 'Multiple bearish indicators are aligned. The trend appears to be downwards, suggesting that put options may be more appropriate at this time.';
+                    recommendationContainerEl.className = "card text-white text-center p-8 put-card";
+                }
+            }
+
+            runAnalysisBtn.addEventListener('click', analyzeStock);
+        });
+    </script>
+</body>
+</html>
+
